@@ -39,6 +39,7 @@ yes24/data/
 # 최종 결과 문서 및 보고서 산출물
 yes24/docs/*.docx
 yes24/docs/*.pptx
+yes24/docs/*.pdf
 yes24/docs/*.html
 yes24/docs/eda_slides.md
 yes24/docs/excel_eda_report.md
