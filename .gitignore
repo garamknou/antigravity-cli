@@ -1,0 +1,50 @@
+# 가상환경 (Virtual Environments)
+.venv/
+venv/
+ENV/
+env/
+
+# Python 컴파일 및 캐시 파일
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# IDE 및 에디터 설정
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# 운영체제 임시 파일
+Thumbs.db
+desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# 수집 데이터 및 로컬 데이터 원본
+yes24/data/
+*.csv
+*.xlsx
+*.tsv
+*.json
+
+# 최종 결과 문서 및 보고서 산출물
+yes24/docs/*.docx
+yes24/docs/*.pptx
+yes24/docs/*.html
+yes24/docs/eda_slides.md
+yes24/docs/excel_eda_report.md
+*.log
+
+# [추가] 숨김 폴더 및 숨김 파일 (Dotfiles & Dot-directories)
+.*
+# 단, .gitignore 자기 자신은 형상관리를 위해 예외 처리
+!.gitignore
