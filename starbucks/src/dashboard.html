@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>starbucks 데이터 분석 대시보드</title>
+  
+  <!-- 구글 웹 폰트 & 폰트어썸 아이콘 CDN -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- 사전 빌드된 대시보드 로컬 데이터 바인딩 -->
+  <script src="dashboard_data.js"></script>
+
+  <style>
+    /* CSS 변수 시스템 - 테마별 색상 스키마 정의 */
+    :root[data-theme="dark"] {
+      --bg-color: #0b0f19;
+      --card-bg: rgba(255, 255, 255, 0.03);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --text-main: #f3f4f6;
+      --text-sub: #9ca3af;
+      --accent-color: #6366f1; /* Indigo */
+      --accent-gradient: linear-gradient(135deg, #6366f1, #a855f7);
+      --grid-color: rgba(255, 255, 255, 0.05);
+      --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      --glass-blur: blur(16px);
+      --table-hover: rgba(255, 255, 255, 0.05);
+      --modal-bg: rgba(15, 23, 42, 0.95);
+    }
+    
+    :root[data-theme="light"] {
+      --bg-color: #f3f4f6;
+      --card-bg: #ffffff;
+      --card-border: rgba(0, 0, 0, 0.06);
+      --text-main: #1f2937;
+      --text-sub: #6b7280;
+      --accent-color: #3b82f6; /* Blue */
+      --accent-gradient: linear-gradient(135deg, #3b82f6, #06b6d4);
+      --grid-color: rgba(0, 0, 0, 0.05);
+      --shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.05);
+      --glass-blur: none;
+      --table-hover: rgba(0, 0, 0, 0.02);
+      --modal-bg: rgba(255, 255, 255, 0.98);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Outfit', sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      transition: background-color 0.4s ease, color 0.4s ease;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    /* 헤더 스타일 */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    header h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header h1 i {
+      -webkit-text-fill-color: initial;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      color: var(--accent-color);
+    }
+
+    /* 테마 스위치 스타일 */
+    .theme-toggle-btn {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      padding: 0.6rem 1.2rem;
+      border-radius: 50px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+      font-size: 0.9rem;
+      box-shadow: var(--shadow);
+      transition: all 0.3s ease;
+    }
+
+    .theme-toggle-btn:hover {
+      transform: translateY(-2px);
+      border-color: var(--accent-color);
+    }
+
+    /* Bento Grid 레이아웃 */
+    .bento-container {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    /* 공통 카드 컴포넌트 */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: var(--shadow);
+      backdrop-filter: var(--glass-blur);
+      transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px 0 rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    /* 메트릭 카드 (상단 KPI) */
+    .metric-card {
+      grid-column: span 1;
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-icon-box {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 1.4rem;
+      background: var(--accent-gradient);
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+    }
+
+    .metric-info h3 {
+      font-size: 0.85rem;
+      color: var(--text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.3rem;
+    }
+
+    .metric-info .metric-value {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+    }
+
+    /* 차트 레이아웃 분할 */
+    .chart-large {
+      grid-column: span 2;
+      height: 380px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-small {
+      grid-column: span 1;
+      height: 380px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-medium {
+      grid-column: span 2;
+      height: 380px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .chart-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .chart-title i {
+      color: var(--accent-color);
+    }
+
+    .chart-wrapper {
+      position: relative;
+      flex-grow: 1;
+      width: 100%;
+      height: 80%;
+    }
+
+    /* 하단 테이블 섹션 */
+    .table-section {
+      grid-column: span 4;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .table-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .search-input-wrapper {
+      position: relative;
+      width: 320px;
+    }
+
+    .search-input-wrapper i {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-sub);
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.6rem 1rem 0.6rem 2.5rem;
+      border-radius: 50px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text-main);
+      outline: none;
+      transition: border-color 0.3s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-color);
+    }
+
+    .filter-select {
+      padding: 0.6rem 1.2rem;
+      border-radius: 50px;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text-main);
+      outline: none;
+      cursor: pointer;
+    }
+
+    /* 테이블 요소 스타일 */
+    .table-container {
+      overflow-x: auto;
+      max-height: 500px;
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background: var(--card-bg);
+      padding: 1rem;
+      font-weight: 600;
+      color: var(--text-sub);
+      border-bottom: 2px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    th:hover {
+      color: var(--accent-color);
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--card-border);
+      max-width: 250px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    tr {
+      transition: background-color 0.2s ease;
+      cursor: pointer;
+    }
+
+    tr:hover {
+      background-color: var(--table-hover);
+    }
+
+    .badge-rank {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 6px;
+      font-weight: 700;
+      text-align: center;
+      min-width: 30px;
+    }
+
+    tr:nth-child(1) .badge-rank { background: gold; color: #111; }
+    tr:nth-child(2) .badge-rank { background: silver; color: #111; }
+    tr:nth-child(3) .badge-rank { background: #cd7f32; color: #fff; }
+    tr:nth-child(n+4) .badge-rank { background: var(--card-border); color: var(--text-main); }
+
+    /* 상세 모달 팝업 스타일 */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+    }
+
+    .modal-content {
+      background: var(--modal-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 700px;
+      padding: 2rem;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      position: relative;
+      animation: modalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalFadeIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1.2rem;
+      right: 1.5rem;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-sub);
+      transition: color 0.2s ease;
+    }
+
+    .modal-close:hover {
+      color: var(--text-main);
+    }
+
+    .modal-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      padding-right: 2rem;
+      color: var(--accent-color);
+    }
+
+    .modal-meta {
+      display: flex;
+      gap: 1.5rem;
+      color: var(--text-sub);
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 0.8rem;
+    }
+
+    .modal-desc-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .modal-desc-body {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-main);
+      max-height: 350px;
+      overflow-y: auto;
+      white-space: pre-line;
+      padding-right: 0.5rem;
+    }
+
+    /* 반응형 구조 조정 */
+    @media (max-width: 1200px) {
+      .bento-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .metric-card { grid-column: span 1; }
+      .chart-large, .chart-medium, .chart-small { grid-column: span 2; }
+      .table-section { grid-column: span 2; }
+    }
+
+    @media (max-width: 768px) {
+      .bento-container {
+        grid-template-columns: 1fr;
+      }
+      .metric-card, .chart-large, .chart-medium, .chart-small, .table-section {
+        grid-column: span 1;
+      }
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 상단 네비게이션 및 테마 스위치 -->
+  <header>
+    <h1><i class="fa-solid fa-chart-line"></i> starbucks 데이터 분석 대시보드</h1>
+    <button class="theme-toggle-btn" id="themeToggleBtn">
+      <i class="fa-solid fa-sun"></i> <span>Light Mode</span>
+    </button>
+  </header>
+
+  <!-- Bento Grid 레이아웃 -->
+  <div class="bento-container">
+    
+    <!-- 4가지 요약 통계 카드 (Metrics) -->
+    <div class="card metric-card">
+      <div class="metric-icon-box"><i class="fa-solid fa-database"></i></div>
+      <div class="metric-info">
+        <h3>총 데이터 수</h3>
+        <div class="metric-value" id="metricTotal">0</div>
+      </div>
+    </div>
+
+    <div class="card metric-card">
+      <div class="metric-icon-box" style="background: linear-gradient(135deg, #10b981, #059669);"><i class="fa-solid fa-calculator"></i></div>
+      <div class="metric-info">
+        <h3>평균 위도</h3>
+        <div class="metric-value" id="metricPrice">0</div>
+      </div>
+    </div>
+
+    <div class="card metric-card">
+      <div class="metric-icon-box" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="fa-solid fa-star"></i></div>
+      <div class="metric-info">
+        <h3>평균 경도</h3>
+        <div class="metric-value" id="metricRating">0.0</div>
+      </div>
+    </div>
+
+    <div class="card metric-card">
+      <div class="metric-icon-box" style="background: linear-gradient(135deg, #ec4899, #be185d);"><i class="fa-solid fa-arrow-trend-up"></i></div>
+      <div class="metric-info">
+        <h3>최고 경도</h3>
+        <div class="metric-value" id="metricReviews">0</div>
+      </div>
+    </div>
+
+    <!-- 차트 구역 -->
+    <!-- 차트 1: value_1 구간 분포 -->
+    <div class="card chart-large" id="cardPriceChart">
+      <div class="chart-header">
+        <div class="chart-title"><i class="fa-solid fa-tags"></i> 위도 분포</div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="priceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 차트 2: category 점유율 -->
+    <div class="card chart-small" id="cardPublisherChart">
+      <div class="chart-header">
+        <div class="chart-title"><i class="fa-solid fa-chart-pie"></i> 시도명 점유율 (Top 10)</div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="publisherChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 차트 3: 만족도 수치 분포 -->
+    <div class="card chart-small" id="cardRatingChart">
+      <div class="chart-header">
+        <div class="chart-title"><i class="fa-solid fa-star-half-stroke"></i> 경도 분포</div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="ratingChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 차트 4: 키워드 중요도 (TF-IDF) -->
+    <div class="card chart-medium" id="cardKeywordChart">
+      <div class="chart-header">
+        <div class="chart-title"><i class="fa-solid fa-key"></i> 도로명주소 중요 키워드 (TF-IDF)</div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="keywordChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 차트 5: 상관관계 (value_1 vs value_2) -->
+    <div class="card chart-medium" id="cardScatterChart">
+      <div class="chart-header">
+        <div class="chart-title"><i class="fa-solid fa-circle-nodes"></i> 위도 대비 경도 분포</div>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 데이터 테이블 섹션 -->
+    <div class="card table-section">
+      <div class="chart-header">
+        <div class="chart-title"><i class="fa-solid fa-list-ol"></i> 상세 데이터 목록</div>
+      </div>
+      
+      <!-- 검색 및 필터링 컨트롤러 -->
+      <div class="table-controls">
+        <div class="search-input-wrapper">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="search-input" id="tableSearch" placeholder="실시간 검색...">
+        </div>
+        <div>
+          <select class="filter-select" id="pubFilter">
+            <option value="">전체 시도명 보기</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- 스크롤 가능 테이블 -->
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortTable('순위')">순위 <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortTable('name')">매장명 <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortTable('category')">시도명 <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortTable('value_1')">위도 <i class="fa-solid fa-sort"></i></th>
+              <th onclick="sortTable('value_2')">경도 <i class="fa-solid fa-sort"></i></th>
+            </tr>
+          </thead>
+          <tbody id="booksTableBody">
+            <!-- 자바스크립트가 동적으로 행을 생성하여 삽입 -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 상세 정보 모달 팝업 -->
+  <div class="modal" id="bookModal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <span class="modal-close" onclick="document.getElementById('bookModal').style.display='none'">&times;</span>
+      <h2 class="modal-title" id="mTitle">[0위] 상세 로딩중...</h2>
+      
+      <div class="modal-meta">
+        <div><i class="fa-solid fa-circle-info"></i> 매장명: <span id="mAuthor">-</span></div>
+        <div><i class="fa-solid fa-tags"></i> 시도명: <span id="mPub">-</span></div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+        <div style="background: var(--card-bg); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--card-border); text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.2rem;">위도</div>
+          <div style="font-weight: 600; font-size: 1rem; color: #10b981;" id="mPrice">0</div>
+        </div>
+        <div style="background: var(--card-bg); padding: 0.8rem; border-radius: 8px; border: 1px solid var(--card-border); text-align: center;">
+          <div style="font-size: 0.75rem; color: var(--text-sub); margin-bottom: 0.2rem;">경도</div>
+          <div style="font-weight: 600; font-size: 1rem; color: #f59e0b;" id="mRating">0.00</div>
+        </div>
+      </div>
+
+      <h3 class="modal-desc-title"><i class="fa-solid fa-align-left"></i> 상세 정보 (도로명주소)</h3>
+      <div class="modal-desc-body" id="mDesc">
+        상세 정보가 여기에 동적으로 렌더링됩니다.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 전역 차트 객체 레퍼런스 보관 (테마 실시간 변경 대응)
+    let charts = {};
+    let filteredBooks = [];
+    let sortColumn = '순위';
+    let sortAscending = true;
+
+    // 1. 요약 통계(Metrics) 연동
+    if (window.DASHBOARD_METRICS) {
+      document.getElementById('metricTotal').textContent = window.DASHBOARD_METRICS.total_books.toLocaleString() + '개';
+      document.getElementById('metricPrice').textContent = window.DASHBOARD_METRICS.avg_price.toLocaleString();
+      document.getElementById('metricRating').textContent = window.DASHBOARD_METRICS.avg_rating.toFixed(2);
+      document.getElementById('metricReviews').textContent = window.DASHBOARD_METRICS.max_reviews.toLocaleString();
+    }
+
+    // 2. 카테고리 필터 드롭다운 초기화
+    if (window.DASHBOARD_BOOKS) {
+      const pubSelect = document.getElementById('pubFilter');
+      const publishers = [...new Set(window.DASHBOARD_BOOKS.map(book => book.category))].sort();
+      publishers.forEach(pub => {
+        if(pub) {
+          const opt = document.createElement('option');
+          opt.value = pub;
+          opt.textContent = pub;
+          pubSelect.appendChild(opt);
+        }
+      });
+    }
+
+    // 3. 차트 테마별 칼라 매핑 설정 생성기
+    function getThemeColors(theme) {
+      const isDark = (theme === 'dark');
+      return {
+        text: isDark ? '#9ca3af' : '#4b5563',
+        grid: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)',
+        accent: '#6366f1',
+        primary: isDark ? '#818cf8' : '#3b82f6',
+        secondary: isDark ? '#fb7185' : '#f43f5e',
+        backgrounds: isDark ? 
+          ['rgba(99,102,241,0.2)', 'rgba(236,72,153,0.2)', 'rgba(245,158,11,0.2)', 'rgba(16,185,129,0.2)', 'rgba(6,182,212,0.2)'] :
+          ['rgba(59,130,246,0.2)', 'rgba(244,63,94,0.2)', 'rgba(217,119,6,0.2)', 'rgba(5,150,105,0.2)', 'rgba(8,145,178,0.2)'],
+        borders: ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#06b6d4']
+      };
+    }
+
+    // 4. 차트 초기화 함수
+    function initCharts(theme) {
+      const colors = getThemeColors(theme);
+      const chartData = window.DASHBOARD_CHARTS;
+
+      if (!chartData) return;
+
+      // 4-1. Chart 1: value_1 분포 차트
+      if (charts.price) charts.price.destroy();
+      const ctxPrice = document.getElementById('priceChart');
+      if (ctxPrice && chartData.price_chart && chartData.price_chart.labels && chartData.price_chart.labels.length > 0) {
+        charts.price = new Chart(ctxPrice, {
+          type: 'bar',
+          data: {
+            labels: chartData.price_chart.labels,
+            datasets: [
+              {
+                label: '위도 분포',
+                data: chartData.price_chart.regular,
+                backgroundColor: colors.primary + '80',
+                borderColor: colors.primary,
+                borderWidth: 1.5
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: colors.text, font: { family: 'Inter' } } }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: colors.text } },
+              y: { grid: { color: colors.grid }, ticks: { color: colors.text } }
+            }
+          }
+        });
+      }
+
+      // 4-2. Chart 2: category 점유율
+      if (charts.publisher) charts.publisher.destroy();
+      const ctxPub = document.getElementById('publisherChart');
+      if (ctxPub && chartData.publisher_chart && chartData.publisher_chart.labels) {
+        charts.publisher = new Chart(ctxPub, {
+          type: 'doughnut',
+          data: {
+            labels: chartData.publisher_chart.labels,
+            datasets: [{
+              data: chartData.publisher_chart.values,
+              backgroundColor: colors.backgrounds.concat(['#a855f7', '#6366f1', '#3b82f6', '#ec4899', '#f43f5e']),
+              borderColor: colors.grid,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { color: colors.text, boxWidth: 12, font: { size: 11 } } }
+            }
+          }
+        });
+      }
+
+      // 4-3. Chart 3: value_2 수치 분포 데이터
+      if (charts.rating) charts.rating.destroy();
+      const ctxRating = document.getElementById('ratingChart');
+      if (ctxRating && chartData.rating_chart && chartData.rating_chart.labels) {
+        charts.rating = new Chart(ctxRating, {
+          type: 'bar',
+          data: {
+            labels: chartData.rating_chart.labels,
+            datasets: [{
+              label: '경도 분포',
+              data: chartData.rating_chart.values,
+              backgroundColor: '#f59e0b90',
+              borderColor: '#f59e0b',
+              borderWidth: 1.5
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { labels: { color: colors.text } }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: colors.text } },
+              y: { grid: { color: colors.grid }, ticks: { color: colors.text } }
+            }
+          }
+        });
+      }
+
+      // 4-4. Chart 4: TF-IDF 중요 키워드
+      if (charts.keyword) charts.keyword.destroy();
+      const ctxKeyword = document.getElementById('keywordChart');
+      if (ctxKeyword && chartData.keyword_chart && chartData.keyword_chart.labels) {
+        charts.keyword = new Chart(ctxKeyword, {
+          type: 'bar',
+          data: {
+            labels: chartData.keyword_chart.labels,
+            datasets: [{
+              label: 'TF-IDF 가중치',
+              data: chartData.keyword_chart.weights,
+              backgroundColor: '#10b98180',
+              borderColor: '#10b981',
+              borderWidth: 1.5
+            }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: { grid: { color: colors.grid }, ticks: { color: colors.text } },
+              y: { grid: { display: false }, ticks: { color: colors.text } }
+            }
+          }
+        });
+      }
+
+      // 4-5. Chart 5: 산점도 (Scatter Chart)
+      if (charts.scatter) charts.scatter.destroy();
+      const ctxScatter = document.getElementById('scatterChart');
+      if (ctxScatter && chartData.scatter_chart) {
+        const scatterPoints = chartData.scatter_chart.map(item => ({
+          x: item.x,
+          y: item.y,
+          title: item.title
+        }));
+
+        charts.scatter = new Chart(ctxScatter, {
+          type: 'scatter',
+          data: {
+            datasets: [{
+              data: scatterPoints,
+              backgroundColor: 'rgba(99, 102, 241, 0.6)',
+              borderColor: colors.accent,
+              borderWidth: 1,
+              pointRadius: 4,
+              pointHoverRadius: 7
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const pt = context.raw;
+                    return `${pt.title} (위도: ${pt.x}, 경도: ${pt.y})`;
+                  }
+                }
+              }
+            },
+            scales: {
+              x: { title: { display: true, text: '위도', color: colors.text }, grid: { color: colors.grid }, ticks: { color: colors.text } },
+              y: { title: { display: true, text: '경도', color: colors.text }, grid: { color: colors.grid }, ticks: { color: colors.text } }
+            }
+          }
+        });
+      }
+    }
+
+    // 5. 실시간 검색 및 필터링 적용 테이블 바인딩
+    function renderTable() {
+      const tbody = document.getElementById('booksTableBody');
+      tbody.innerHTML = '';
+
+      filteredBooks.forEach((book) => {
+        const tr = document.createElement('tr');
+        tr.onclick = () => openModal(book);
+        tr.innerHTML = `
+          <td><span class="badge-rank">${book.순위}</span></td>
+          <td style="font-weight: 500;">${book.name}</td>
+          <td>${book.category}</td>
+          <td>${typeof book.value_1 === 'number' ? book.value_1.toLocaleString() : book.value_1}</td>
+          <td>${typeof book.value_2 === 'number' ? book.value_2.toLocaleString() : book.value_2}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function applySearchAndFilter() {
+      const query = document.getElementById('tableSearch').value.toLowerCase().trim();
+      const pubFilter = document.getElementById('pubFilter').value;
+
+      if (!window.DASHBOARD_BOOKS) return;
+
+      filteredBooks = window.DASHBOARD_BOOKS.filter(book => {
+        const matchQuery = book.name.toLowerCase().includes(query) || 
+                           book.category.toLowerCase().includes(query);
+        const matchPub = pubFilter === "" || book.category === pubFilter;
+        return matchQuery && matchPub;
+      });
+
+      // 정렬 적용
+      sortData();
+      renderTable();
+    }
+
+    // 6. 테이블 다이나믹 정렬
+    function sortData() {
+      filteredBooks.sort((a, b) => {
+        let valA = a[sortColumn];
+        let valB = b[sortColumn];
+
+        if (typeof valA === 'string') {
+          return sortAscending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        } else {
+          return sortAscending ? valA - valB : valB - valA;
+        }
+      });
+    }
+
+    function sortTable(column) {
+      if (sortColumn === column) {
+        sortAscending = !sortAscending;
+      } else {
+        sortColumn = column;
+        sortAscending = true;
+      }
+      applySearchAndFilter();
+    }
+
+    // 7. 모달 팝업 제어
+    function openModal(book) {
+      document.getElementById('mTitle').textContent = `[No.${book.순위}] ${book.name}`;
+      document.getElementById('mAuthor').textContent = book.name;
+      document.getElementById('mPub').textContent = book.category;
+      document.getElementById('mPrice').textContent = book.value_1.toLocaleString() + ' (위도)';
+      document.getElementById('mRating').textContent = book.value_2.toLocaleString() + ' (경도)';
+      document.getElementById('mDesc').textContent = book.detail_text;
+
+      document.getElementById('bookModal').style.display = 'flex';
+    }
+
+    function closeModal(e) {
+      if (e.target.id === 'bookModal') {
+        document.getElementById('bookModal').style.display = 'none';
+      }
+    }
+
+    // 8. 테마 스위치 이벤트 핸들러
+    const themeBtn = document.getElementById('themeToggleBtn');
+    themeBtn.addEventListener('click', () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      
+      document.documentElement.setAttribute('data-theme', newTheme);
+      
+      if (newTheme === 'dark') {
+        themeBtn.innerHTML = '<i class="fa-solid fa-sun"></i> <span>Light Mode</span>';
+      } else {
+        themeBtn.innerHTML = '<i class="fa-solid fa-moon"></i> <span>Dark Mode</span>';
+      }
+      
+      initCharts(newTheme);
+    });
+
+    // 9. 프로그램 실행 초기화
+    window.addEventListener('DOMContentLoaded', () => {
+      if (window.DASHBOARD_BOOKS) {
+        filteredBooks = [...window.DASHBOARD_BOOKS];
+      }
+      
+      const initialTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      initCharts(initialTheme);
+      applySearchAndFilter();
+
+      document.getElementById('tableSearch').addEventListener('input', applySearchAndFilter);
+      document.getElementById('pubFilter').addEventListener('change', applySearchAndFilter);
+    });
+  </script>
+</body>
+</html>

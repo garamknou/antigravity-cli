@@ -1,0 +1,16 @@
+{
+  "project_name": "starbucks",
+  "target_url": "https://www.starbucks.co.kr/store/store_map.do",
+  "api_url": "https://www.starbucks.co.kr/store/getStore.do",
+  "column_mapping": {
+    "name": "매장명",
+    "category": "시도명",
+    "value_1": "위도",
+    "value_2": "경도",
+    "detail_text": "도로명주소"
+  },
+  "retry_config": {
+    "max_retries": 5,
+    "backoff_factor": 1.5
+  }
+}
